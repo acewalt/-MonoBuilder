@@ -15,6 +15,10 @@ It is aimed at users who do not know C# yet: choose a reusable component, edit f
 - Editable local library: create your own reusable component templates
 - Custom templates stored in the browser with `localStorage`
 - Responsive interface
+- English / Spanish interface toggle
+- Animation pack based on LeanTween and DOTween workflows
+- Trivia Quiz Manager
+- Registration Form POST and Periodic Data Sender templates
 - GitHub Pages deployment workflow
 
 ## Included templates
@@ -27,6 +31,17 @@ It is aimed at users who do not know C# yet: choose a reusable component, edit f
 - Input Door
 - Pickup
 - Object Rotator
+- UI Spinner
+- Infinite Rotation
+- Random Levitation
+- UI Slide Toggle
+- Scale Bounce Intro
+- Button Bounce
+- UI Rotation Toggle
+- Multi Object Rotator
+- Trivia Quiz Manager
+- Registration Form POST
+- Periodic Data Sender
 
 ## Run locally
 
