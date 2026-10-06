@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17191d">
+  <title>MonoBuilder — Visual Unity Component Builder</title>
+  <meta name="description" content="Build Unity MonoBehaviour components visually and export clean C# scripts.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <strong>MonoBuilder</strong>
+          <span>Visual Unity component builder</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="button ghost" id="resetProjectBtn">Reset</button>
+        <button class="button ghost" id="copyCodeBtn">Copy C#</button>
+        <button class="button primary" id="downloadCodeBtn">Export .cs</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="library-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Library</p>
+            <h2>Components</h2>
+          </div>
+          <button class="icon-button" id="newTemplateBtn" title="Create custom component">+</button>
+        </div>
+
+        <label class="search-box">
+          <span>⌕</span>
+          <input id="librarySearch" type="search" placeholder="Search components">
+        </label>
+
+        <div class="category-chips" id="categoryChips"></div>
+        <div class="library-list" id="libraryList"></div>
+      </aside>
+
+      <section class="builder-panel panel">
+        <div class="panel-heading wide">
+          <div>
+            <p class="eyebrow">Visual setup</p>
+            <h2 id="builderTitle">Player Movement</h2>
+          </div>
+          <span class="status-pill">Browser only</span>
+        </div>
+
+        <div class="object-card">
+          <div class="object-icon">◆</div>
+          <div class="object-main">
+            <label class="mini-label" for="gameObjectName">GameObject</label>
+            <input id="gameObjectName" class="inline-name" value="Player" spellcheck="false">
+          </div>
+          <div class="object-meta">
+            <span>Scene object</span>
+            <strong id="componentClassBadge">PlayerMovement</strong>
+          </div>
+        </div>
+
+        <div class="builder-grid">
+          <section class="info-card">
+            <div class="section-title">
+              <span>01</span>
+              <div>
+                <h3>What it does</h3>
+                <p id="componentDescription"></p>
+              </div>
+            </div>
+            <div class="feature-list" id="featureList"></div>
+          </section>
+
+          <section class="preview-card">
+            <div class="preview-toolbar">
+              <div>
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <strong>Inspector Preview</strong>
+              <span class="preview-mode">Mock</span>
+            </div>
+            <div class="unity-inspector" id="inspectorPreview"></div>
+          </section>
+        </div>
+
+        <section class="code-section">
+          <div class="code-tabs">
+            <button class="code-tab active" data-code-tab="code">Generated C#</button>
+            <button class="code-tab" data-code-tab="setup">Unity setup</button>
+          </div>
+          <div id="codePane" class="code-pane">
+            <div class="code-toolbar">
+              <span id="codeFilename">PlayerMovement.cs</span>
+              <button id="copyCodeInlineBtn">Copy</button>
+            </div>
+            <pre><code id="generatedCode"></code></pre>
+          </div>
+          <div id="setupPane" class="setup-pane hidden"></div>
+        </section>
+      </section>
+
+      <aside class="inspector-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Inspector</p>
+            <h2>Properties</h2>
+          </div>
+          <span class="tiny-badge" id="fieldCountBadge">0 fields</span>
+        </div>
+
+        <div class="inspector-note">
+          Change values here. MonoBuilder updates the preview and generated C# instantly.
+        </div>
+
+        <form id="propertyForm" class="property-form"></form>
+      </aside>
+    </main>
+  </div>
+
+  <dialog id="templateDialog" class="modal">
+    <form method="dialog" id="templateForm">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Editable library</p>
+          <h2>Create component template</h2>
+        </div>
+        <button class="icon-button" value="cancel" formnovalidate>×</button>
+      </div>
+
+      <div class="modal-grid">
+        <label>
+          <span>Name</span>
+          <input id="templateName" required placeholder="Interactable Object">
+        </label>
+        <label>
+          <span>Class name</span>
+          <input id="templateClass" required placeholder="InteractableObject">
+        </label>
+        <label>
+          <span>Category</span>
+          <input id="templateCategory" placeholder="Interaction" value="Custom">
+        </label>
+        <label>
+          <span>Description</span>
+          <input id="templateDescription" placeholder="Reusable interaction component">
+        </label>
+      </div>
+
+      <div class="field-builder-heading">
+        <div>
+          <h3>Inspector fields</h3>
+          <p>Add only the options a non-programmer should have to touch.</p>
+        </div>
+        <button type="button" class="button ghost" id="addFieldBtn">+ Field</button>
+      </div>
+
+      <div id="customFields" class="custom-fields"></div>
+
+      <div class="modal-actions">
+        <button class="button ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="button primary" value="default" id="saveTemplateBtn">Save to library</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="customFieldTemplate">
+    <div class="custom-field-row">
+      <input data-custom="label" placeholder="Display label" value="Target">
+      <input data-custom="name" placeholder="variableName" value="target">
+      <select data-custom="type">
+        <option>GameObject</option>
+        <option>Transform</option>
+        <option>Rigidbody</option>
+        <option>CharacterController</option>
+        <option>Animator</option>
+        <option>AudioSource</option>
+        <option>TMP_Text</option>
+        <option>Button</option>
+        <option>Slider</option>
+        <option>InputActionReference</option>
+        <option>float</option>
+        <option>int</option>
+        <option>bool</option>
+        <option>string</option>
+        <option>Color</option>
+        <option>Vector2</option>
+        <option>Vector3</option>
+      </select>
+      <input data-custom="default" placeholder="Default">
+      <button type="button" class="remove-field" title="Remove field">×</button>
+    </div>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
