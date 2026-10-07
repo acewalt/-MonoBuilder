@@ -508,3 +508,55 @@ button { color: inherit; }
   font-size: 9px;
   line-height: 1.5;
 }
+
+
+.core-vault {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(117,215,154,.22);
+  border-radius: 12px;
+  background: rgba(117,215,154,.045);
+}
+.core-vault > div:first-child { min-width: 0; }
+.core-vault-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted-2);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .11em;
+}
+.core-vault strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+}
+.core-vault small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.core-vault-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+.dependency-badge.bundled {
+  border-color: rgba(117,215,154,.5);
+  background: rgba(117,215,154,.08);
+  color: var(--success);
+}
+
+@media (max-width: 700px) {
+  .core-vault { align-items: stretch; flex-direction: column; }
+  .core-vault-actions { width: 100%; }
+  .core-vault-actions .button { flex: 1; }
+}
