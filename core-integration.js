@@ -584,10 +584,10 @@
     const external = deps.filter(function(d){ return d.type === "manual" || d.type === "licensed"; });
 
     const upmRows = upm.map(function(d){
-      return '        new Dependency("' + d.name.replace(/"/g, '\\"') + '", "' + d.package.replace(/"/g, '\\"') + '", "' + (probes[d.id] || "") + '")';
+      return '        new Dependency("' + d.name.replace(/"/g, '\"') + '", "' + d.package.replace(/"/g, '\"') + '", "' + (probes[d.id] || "") + '")';
     }).join(",\n");
     const externalRows = external.map(function(d){
-      return '        new Dependency("' + d.name.replace(/"/g, '\\"') + '", "", "' + (probes[d.id] || "") + '")';
+      return '        new Dependency("' + d.name.replace(/"/g, '\"') + '", "", "' + (probes[d.id] || "") + '")';
     }).join(",\n");
 
     return [
@@ -604,10 +604,10 @@
       "[InitializeOnLoad]",
       "public static class MonoBuilderBundleBootstrap",
       "{",
-      "    private const string Root = \\"Assets/MonoBuilder\\";",
-      "    private const string Marker = Root + \\"/.monobuilder-installed\\";",
-      "    private const string ApprovedKey = \\"MonoBuilder.Bundle.InstallApproved\\";",
-      "    private const string AskedKey = \\"MonoBuilder.Bundle.InstallAsked\\";",
+      "    private const string Root = \"Assets/MonoBuilder\";",
+      "    private const string Marker = Root + \"/.monobuilder-installed\";",
+      "    private const string ApprovedKey = \"MonoBuilder.Bundle.InstallApproved\";",
+      "    private const string AskedKey = \"MonoBuilder.Bundle.InstallAsked\";",
       "",
       "    private sealed class Dependency",
       "    {",
@@ -640,18 +640,18 @@
       "        if (!SessionState.GetBool(AskedKey, false))",
       "        {",
       "            SessionState.SetBool(AskedKey, true);",
-      "            string list = string.Join(\\"\\\\n\\", Upm.Select(x => \\"• \\" + x.Name).Concat(External.Select(x => \\"• \\" + x.Name)));",
+      "            string list = string.Join(\"\\\\n\", Upm.Select(x => \"• \" + x.Name).Concat(External.Select(x => \"• \" + x.Name)));",
       "            bool install = EditorUtility.DisplayDialog(",
-      "                \\"MonoBuilder bundle\\",",
-      "                \\"This bundle needs the following dependencies before its generated scripts can compile:\\\\n\\\\n\\" + list + \\"\\\\n\\\\nInstall supported Unity packages now?\\",",
-      "                \\"Install / Continue\\", \\"Later\\");",
+      "                \"MonoBuilder bundle\",",
+      "                \"This bundle needs the following dependencies before its generated scripts can compile:\\\\n\\\\n\" + list + \"\\\\n\\\\nInstall supported Unity packages now?\",",
+      "                \"Install / Continue\", \"Later\");",
       "            if (!install) return;",
       "            SessionState.SetBool(ApprovedKey, true);",
       "        }",
       "        if (SessionState.GetBool(ApprovedKey, false)) ContinueInstall();",
       "    }",
       "",
-      "    [MenuItem(\\"Tools/MonoBuilder/Install Bundle Dependencies\\")]",
+      "    [MenuItem(\"Tools/MonoBuilder/Install Bundle Dependencies\")]",
       "    public static void InstallFromMenu()",
       "    {",
       "        SessionState.SetBool(ApprovedKey, true);",
@@ -665,7 +665,7 @@
       "        Dependency package = Upm.FirstOrDefault(x => !HasType(x.ProbeType) && !HasPackage(x.Package));",
       "        if (package != null)",
       "        {",
-      "            Debug.Log(\\"MonoBuilder: installing \\" + package.Name + \\" (\\" + package.Package + \\")\\");",
+      "            Debug.Log(\"MonoBuilder: installing \" + package.Name + \" (\" + package.Package + \")\");",
       "            request = Client.Add(package.Package);",
       "            EditorApplication.update += PollRequest;",
       "            return;",
@@ -675,9 +675,9 @@
       "        if (missingExternal.Length > 0)",
       "        {",
       "            EditorUtility.DisplayDialog(",
-      "                \\"MonoBuilder: manual dependencies required\\",",
-      "                \\"Install these dependencies, then run Tools → MonoBuilder → Install Bundle Dependencies again:\\\\n\\\\n• \\" + string.Join(\\"\\\\n• \\", missingExternal),",
-      "                \\"OK\\");",
+      "                \"MonoBuilder: manual dependencies required\",",
+      "                \"Install these dependencies, then run Tools → MonoBuilder → Install Bundle Dependencies again:\\\\n\\\\n• \" + string.Join(\"\\\\n• \", missingExternal),",
+      "                \"OK\");",
       "            return;",
       "        }",
       "",
@@ -690,7 +690,7 @@
       "        EditorApplication.update -= PollRequest;",
       "        if (request.Status == StatusCode.Failure)",
       "        {",
-      "            Debug.LogError(\\"MonoBuilder dependency install failed: \\" + request.Error.message);",
+      "            Debug.LogError(\"MonoBuilder dependency install failed: \" + request.Error.message);",
       "            request = null;",
       "            return;",
       "        }",
@@ -713,7 +713,7 @@
       "            try",
       "            {",
       "                if (assembly.GetType(typeName, false) != null) return true;",
-      "                if (!typeName.Contains(\\".\\") && assembly.GetTypes().Any(x => x.Name == typeName)) return true;",
+      "                if (!typeName.Contains(\".\") && assembly.GetTypes().Any(x => x.Name == typeName)) return true;",
       "            }",
       "            catch { }",
       "        }",
@@ -722,29 +722,29 @@
       "",
       "    private static void MaterializePayload()",
       "    {",
-      "        string payload = Root + \\"/Payload\\";",
+      "        string payload = Root + \"/Payload\";",
       "        if (!Directory.Exists(payload))",
       "        {",
       "            Directory.CreateDirectory(Root);",
-      "            File.WriteAllText(Marker, DateTime.UtcNow.ToString(\\"O\\"));",
+      "            File.WriteAllText(Marker, DateTime.UtcNow.ToString(\"O\"));",
       "            return;",
       "        }",
       "",
-      "        foreach (string source in Directory.GetFiles(payload, \\"*.mbcode\\", SearchOption.AllDirectories))",
+      "        foreach (string source in Directory.GetFiles(payload, \"*.mbcode\", SearchOption.AllDirectories))",
       "        {",
-      "            string destination = source.Substring(0, source.Length - \\".mbcode\\".Length);",
+      "            string destination = source.Substring(0, source.Length - \".mbcode\".Length);",
       "            Directory.CreateDirectory(Path.GetDirectoryName(destination));",
       "            File.Copy(source, destination, true);",
       "            File.Delete(source);",
       "        }",
       "",
-      "        File.WriteAllText(Marker, DateTime.UtcNow.ToString(\\"O\\"));",
-      "        Debug.Log(\\"MonoBuilder: dependencies ready and generated scripts activated.\\");",
+      "        File.WriteAllText(Marker, DateTime.UtcNow.ToString(\"O\"));",
+      "        Debug.Log(\"MonoBuilder: dependencies ready and generated scripts activated.\");",
       "        AssetDatabase.Refresh();",
       "    }",
       "}",
       "#endif"
-    ].join("\\n");
+    ].join("\n");
   }
 
   function bundleReadme(template, deps) {
