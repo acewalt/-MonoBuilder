@@ -894,5 +894,7 @@
   renderCategories();
   localizeCoreTemplate();
   renderAll();
-  Promise.all([ensureCoreCatalog(), ensureCoreFields()]).then(function(){ renderDependencyStrip(); }).catch(function(){});
+  // Core metadata is intentionally lazy-loaded from the Core dialog.
+  // Loading and decompressing both indexes during initial page startup is unnecessary.
+  renderDependencyStrip();
 })();
