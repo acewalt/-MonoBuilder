@@ -567,6 +567,186 @@
     ].join("\n");
   }
 
+
+  function bundleBootstrapCode(deps) {
+    const probes = {
+      "input-system": "UnityEngine.InputSystem.InputAction",
+      "ugui": "UnityEngine.UI.Button",
+      "tmp": "TMPro.TMP_Text",
+      "ai-navigation": "Unity.AI.Navigation.NavMeshSurface",
+      "mathematics": "Unity.Mathematics.float3",
+      "collections": "Unity.Collections.NativeArray",
+      "game-creator-core": "GameCreator.Runtime.Characters.Character",
+      "lean-tween": "LeanTween",
+      "dotween": "DG.Tweening.DOTween"
+    };
+    const upm = deps.filter(function(d){ return d.type === "upm"; });
+    const external = deps.filter(function(d){ return d.type === "manual" || d.type === "licensed"; });
+
+    const upmRows = upm.map(function(d){
+      return '        new Dependency("' + d.name.replace(/"/g, '\\"') + '", "' + d.package.replace(/"/g, '\\"') + '", "' + (probes[d.id] || "") + '")';
+    }).join(",\n");
+    const externalRows = external.map(function(d){
+      return '        new Dependency("' + d.name.replace(/"/g, '\\"') + '", "", "' + (probes[d.id] || "") + '")';
+    }).join(",\n");
+
+    return [
+      "#if UNITY_EDITOR",
+      "using System;",
+      "using System.Collections.Generic;",
+      "using System.IO;",
+      "using System.Linq;",
+      "using UnityEditor;",
+      "using UnityEditor.PackageManager;",
+      "using UnityEditor.PackageManager.Requests;",
+      "using UnityEngine;",
+      "",
+      "[InitializeOnLoad]",
+      "public static class MonoBuilderBundleBootstrap",
+      "{",
+      "    private const string Root = \\"Assets/MonoBuilder\\";",
+      "    private const string Marker = Root + \\"/.monobuilder-installed\\";",
+      "    private const string ApprovedKey = \\"MonoBuilder.Bundle.InstallApproved\\";",
+      "    private const string AskedKey = \\"MonoBuilder.Bundle.InstallAsked\\";",
+      "",
+      "    private sealed class Dependency",
+      "    {",
+      "        public readonly string Name;",
+      "        public readonly string Package;",
+      "        public readonly string ProbeType;",
+      "        public Dependency(string name, string package, string probeType) { Name = name; Package = package; ProbeType = probeType; }",
+      "    }",
+      "",
+      "    private static readonly Dependency[] Upm = new Dependency[]",
+      "    {",
+      upmRows,
+      "    };",
+      "",
+      "    private static readonly Dependency[] External = new Dependency[]",
+      "    {",
+      externalRows,
+      "    };",
+      "",
+      "    private static AddRequest request;",
+      "",
+      "    static MonoBuilderBundleBootstrap()",
+      "    {",
+      "        EditorApplication.delayCall += AutoStart;",
+      "    }",
+      "",
+      "    private static void AutoStart()",
+      "    {",
+      "        if (File.Exists(Marker)) return;",
+      "        if (!SessionState.GetBool(AskedKey, false))",
+      "        {",
+      "            SessionState.SetBool(AskedKey, true);",
+      "            string list = string.Join(\\"\\\\n\\", Upm.Select(x => \\"• \\" + x.Name).Concat(External.Select(x => \\"• \\" + x.Name)));",
+      "            bool install = EditorUtility.DisplayDialog(",
+      "                \\"MonoBuilder bundle\\",",
+      "                \\"This bundle needs the following dependencies before its generated scripts can compile:\\\\n\\\\n\\" + list + \\"\\\\n\\\\nInstall supported Unity packages now?\\",",
+      "                \\"Install / Continue\\", \\"Later\\");",
+      "            if (!install) return;",
+      "            SessionState.SetBool(ApprovedKey, true);",
+      "        }",
+      "        if (SessionState.GetBool(ApprovedKey, false)) ContinueInstall();",
+      "    }",
+      "",
+      "    [MenuItem(\\"Tools/MonoBuilder/Install Bundle Dependencies\\")]",
+      "    public static void InstallFromMenu()",
+      "    {",
+      "        SessionState.SetBool(ApprovedKey, true);",
+      "        ContinueInstall();",
+      "    }",
+      "",
+      "    private static void ContinueInstall()",
+      "    {",
+      "        if (request != null || File.Exists(Marker)) return;",
+      "",
+      "        Dependency package = Upm.FirstOrDefault(x => !HasType(x.ProbeType) && !HasPackage(x.Package));",
+      "        if (package != null)",
+      "        {",
+      "            Debug.Log(\\"MonoBuilder: installing \\" + package.Name + \\" (\\" + package.Package + \\")\\");",
+      "            request = Client.Add(package.Package);",
+      "            EditorApplication.update += PollRequest;",
+      "            return;",
+      "        }",
+      "",
+      "        string[] missingExternal = External.Where(x => !HasType(x.ProbeType)).Select(x => x.Name).ToArray();",
+      "        if (missingExternal.Length > 0)",
+      "        {",
+      "            EditorUtility.DisplayDialog(",
+      "                \\"MonoBuilder: manual dependencies required\\",",
+      "                \\"Install these dependencies, then run Tools → MonoBuilder → Install Bundle Dependencies again:\\\\n\\\\n• \\" + string.Join(\\"\\\\n• \\", missingExternal),",
+      "                \\"OK\\");",
+      "            return;",
+      "        }",
+      "",
+      "        MaterializePayload();",
+      "    }",
+      "",
+      "    private static void PollRequest()",
+      "    {",
+      "        if (request == null || !request.IsCompleted) return;",
+      "        EditorApplication.update -= PollRequest;",
+      "        if (request.Status == StatusCode.Failure)",
+      "        {",
+      "            Debug.LogError(\\"MonoBuilder dependency install failed: \\" + request.Error.message);",
+      "            request = null;",
+      "            return;",
+      "        }",
+      "        request = null;",
+      "        AssetDatabase.Refresh();",
+      "        EditorApplication.delayCall += ContinueInstall;",
+      "    }",
+      "",
+      "    private static bool HasPackage(string packageName)",
+      "    {",
+      "        if (string.IsNullOrEmpty(packageName)) return true;",
+      "        return PackageInfo.GetAllRegisteredPackages().Any(x => x.name == packageName);",
+      "    }",
+      "",
+      "    private static bool HasType(string typeName)",
+      "    {",
+      "        if (string.IsNullOrEmpty(typeName)) return true;",
+      "        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())",
+      "        {",
+      "            try",
+      "            {",
+      "                if (assembly.GetType(typeName, false) != null) return true;",
+      "                if (!typeName.Contains(\\".\\") && assembly.GetTypes().Any(x => x.Name == typeName)) return true;",
+      "            }",
+      "            catch { }",
+      "        }",
+      "        return false;",
+      "    }",
+      "",
+      "    private static void MaterializePayload()",
+      "    {",
+      "        string payload = Root + \\"/Payload\\";",
+      "        if (!Directory.Exists(payload))",
+      "        {",
+      "            Directory.CreateDirectory(Root);",
+      "            File.WriteAllText(Marker, DateTime.UtcNow.ToString(\\"O\\"));",
+      "            return;",
+      "        }",
+      "",
+      "        foreach (string source in Directory.GetFiles(payload, \\"*.mbcode\\", SearchOption.AllDirectories))",
+      "        {",
+      "            string destination = source.Substring(0, source.Length - \\".mbcode\\".Length);",
+      "            Directory.CreateDirectory(Path.GetDirectoryName(destination));",
+      "            File.Copy(source, destination, true);",
+      "            File.Delete(source);",
+      "        }",
+      "",
+      "        File.WriteAllText(Marker, DateTime.UtcNow.ToString(\\"O\\"));",
+      "        Debug.Log(\\"MonoBuilder: dependencies ready and generated scripts activated.\\");",
+      "        AssetDatabase.Refresh();",
+      "    }",
+      "}",
+      "#endif"
+    ].join("\\n");
+  }
+
   function bundleReadme(template, deps) {
     const es = currentLang() === "es";
     const upm = deps.filter(function(d){ return d.type === "upm"; });
@@ -579,8 +759,8 @@
       "",
       "## " + (es ? "Instalación" : "Installation"),
       "",
-      es ? "1. Copia la carpeta Assets dentro de tu proyecto Unity." : "1. Copy the Assets folder into your Unity project.",
-      upm.length ? (es ? "2. En Unity ejecuta Tools → MonoBuilder → Install Required UPM Packages." : "2. In Unity run Tools → MonoBuilder → Install Required UPM Packages.") : "",
+      es ? "1. Copia la carpeta Assets dentro de tu proyecto Unity. Los scripts con dependencias quedan inactivos como .mbcode hasta que estén listas." : "1. Copy the Assets folder into your Unity project. Dependency-sensitive scripts stay inactive as .mbcode until requirements are ready.",
+      upm.length ? (es ? "2. Unity ofrecerá instalar automáticamente los paquetes UPM compatibles. También puedes ejecutar Tools → MonoBuilder → Install Bundle Dependencies." : "2. Unity will offer to install compatible UPM packages automatically. You can also run Tools → MonoBuilder → Install Bundle Dependencies.") : "",
       licensed.length ? (es ? "3. Instala previamente las dependencias comerciales/licenciadas que aparecen abajo." : "3. Install the licensed/commercial dependencies listed below first.") : "",
       "",
       "## " + (es ? "Dependencias detectadas" : "Detected dependencies"),
@@ -611,17 +791,27 @@
     const deps = resolveDependencies(template, code);
     const root = "Assets/MonoBuilder/";
     const files = {};
-    files[root + "Generated/" + template.className + ".cs"] = code;
-    if (template.id === CORE_TEMPLATE_ID) files[root + "Editor/MonoBuilderCreateCharacter.cs"] = characterEditorCode();
-    const installer = dependencyInstallerCode(deps);
-    if (installer) files[root + "Editor/MonoBuilderDependencyInstaller.cs"] = installer;
-    files["MonoBuilder.dependencies.json"] = JSON.stringify({
-      schema: 1,
+    const needsBootstrap = deps.some(function(d){ return d.type !== "builtin"; });
+
+    if (needsBootstrap) {
+      files[root + "Payload/Generated/" + template.className + ".cs.mbcode"] = code;
+      if (template.id === CORE_TEMPLATE_ID) {
+        files[root + "Payload/Editor/MonoBuilderCreateCharacter.cs.mbcode"] = characterEditorCode();
+      }
+      files[root + "Editor/MonoBuilderBundleBootstrap.cs"] = bundleBootstrapCode(deps);
+    } else {
+      files[root + "Generated/" + template.className + ".cs"] = code;
+      if (template.id === CORE_TEMPLATE_ID) files[root + "Editor/MonoBuilderCreateCharacter.cs"] = characterEditorCode();
+    }
+
+    files[root + "MonoBuilder.dependencies.json"] = JSON.stringify({
+      schema: 2,
       template: template.id,
       className: template.className,
       dependencies: deps,
       coreReferences: Array.from(corePinned).sort(),
-      note: "Game Creator 2 Core, DOTween and LeanTween are not redistributed by MonoBuilder."
+      activation: needsBootstrap ? "payload-after-dependencies" : "immediate",
+      note: "Licensed/manual dependencies are detected but never redistributed by MonoBuilder."
     }, null, 2);
     files["README.md"] = bundleReadme(template, deps);
     return { files: files, template: template, deps: deps };
