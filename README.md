@@ -21,6 +21,7 @@ It is aimed at users who do not know C# yet: choose a reusable component, edit f
 - Registration Form POST and Periodic Data Sender templates
 - Game Creator 2 Core architecture explorer and Character builder
 - Dependency-aware bundle export with a Unity Editor bootstrap installer
+- Local Core Source Vault: link the supplied Core ZIP once in the browser and embed it automatically in Core-dependent exports
 - Serialized-option index extracted from the supplied Core source
 - GitHub Pages deployment workflow
 
@@ -61,7 +62,7 @@ The supplied Game Creator 2 Core C# source was analyzed as architecture input fo
 
 The **Game Creator Character Core** template exposes the main Character kernel choices (Player, Motion, Driver, Rotation, Animation), locomotion/gravity/jump/dash values, Footsteps, Ragdoll, and optional IK rigs.
 
-The public repository intentionally stores only generated integration code and compact architectural metadata. It does **not** redistribute the original Game Creator source or commercial assets. A Unity project using those generated integrations must have its licensed Game Creator 2 Core installation available.
+The public repository intentionally stores only generated integration code and compact architectural metadata. It does **not** redistribute the original Game Creator source or commercial assets. Instead, the **Core Source Vault** stores the source ZIP locally in IndexedDB after the user links it. Core-dependent exports can then embed that local ZIP without uploading it to GitHub.
 
 ## Dependency-safe bundles
 
@@ -71,8 +72,11 @@ If a generated component needs an external package, the runtime code is exported
 
 1. detect already installed dependencies by reflection,
 2. install supported Unity Package Manager dependencies,
-3. report manual/licensed dependencies such as Game Creator, DOTween, or LeanTween,
-4. activate the generated C# only after requirements are available.
+3. when Core is required, extract the locally linked Core ZIP into the project if Game Creator is not already present,
+4. report any remaining manual dependencies such as DOTween or LeanTween,
+5. activate the generated C# only after requirements are available.
+
+For the supplied Core source, the bundle resolver automatically accounts for Input System, uGUI, TextMeshPro, Mathematics, Collections and built-in Playables. Tests are not extracted into the Unity project.
 
 A human-readable README and `MonoBuilder.dependencies.json` are included in every bundle.
 
