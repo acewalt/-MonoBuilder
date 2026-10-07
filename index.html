@@ -185,6 +185,18 @@
         </div>
         <button class="icon-button" id="closeCoreBtn" type="button">×</button>
       </div>
+      <div class="core-vault" id="coreVault">
+        <div>
+          <span class="core-vault-kicker">Core source vault</span>
+          <strong id="coreVaultStatus">Not linked</strong>
+          <small id="coreVaultMeta">Link your GameCreator2_CSharp_Source.zip once. It stays in this browser.</small>
+        </div>
+        <div class="core-vault-actions">
+          <button type="button" class="button primary" id="linkCoreSourceBtn">Link Core ZIP</button>
+          <button type="button" class="button ghost hidden" id="forgetCoreSourceBtn">Forget</button>
+        </div>
+        <input id="coreSourceFileInput" type="file" accept=".zip,application/zip" hidden>
+      </div>
       <div class="core-summary" id="coreSummary"></div>
       <div class="core-toolbar">
         <label class="search-box core-search"><span>⌕</span><input id="coreSearch" type="search" placeholder="Search 1,400+ detected runtime types"></label>
