@@ -19,10 +19,12 @@
         </div>
       </div>
       <div class="top-actions">
+        <button class="button ghost" id="coreBtn" title="Explore imported Core architecture">Core</button>
         <button class="button ghost" id="languageBtn" title="Cambiar idioma / Change language">ES</button>
         <button class="button ghost" id="resetProjectBtn">Reset</button>
         <button class="button ghost" id="copyCodeBtn">Copy C#</button>
-        <button class="button primary" id="downloadCodeBtn">Export .cs</button>
+        <button class="button ghost" id="downloadCodeBtn">Raw .cs</button>
+        <button class="button primary" id="downloadBundleBtn">Export Bundle</button>
       </div>
     </header>
 
@@ -53,6 +55,8 @@
           </div>
           <span class="status-pill">Browser only</span>
         </div>
+
+        <div class="dependency-strip" id="dependencyStrip"><span class="dependency-label">Dependencies</span><div id="dependencyBadges"></div></div>
 
         <div class="object-card">
           <div class="object-icon">◆</div>
@@ -172,6 +176,38 @@
     </form>
   </dialog>
 
+  <dialog id="coreDialog" class="modal core-modal">
+    <div class="core-shell">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Imported architecture</p>
+          <h2>Core Explorer</h2>
+        </div>
+        <button class="icon-button" id="closeCoreBtn" type="button">×</button>
+      </div>
+      <div class="core-summary" id="coreSummary"></div>
+      <div class="core-toolbar">
+        <label class="search-box core-search"><span>⌕</span><input id="coreSearch" type="search" placeholder="Search 1,400+ detected runtime types"></label>
+        <select id="coreModuleFilter">
+          <option value="All">All modules</option>
+          <option>Cameras</option>
+          <option>Characters</option>
+          <option>Common</option>
+          <option>Variables</option>
+          <option>VisualScripting</option>
+        </select>
+      </div>
+      <div class="core-layout">
+        <div class="core-list" id="coreList"></div>
+        <aside class="core-detail" id="coreDetail">
+          <p class="eyebrow">Selection</p>
+          <h3>Choose a Core type</h3>
+          <p>Search the architecture extracted from the uploaded Core source. MonoBuilder uses this catalog for dependency resolution without redistributing the original source.</p>
+        </aside>
+      </div>
+    </div>
+  </dialog>
+
   <template id="customFieldTemplate">
     <div class="custom-field-row">
       <input data-custom="label" placeholder="Display label" value="Target">
@@ -209,5 +245,7 @@
 
   <script src="app.js"></script>
   <script src="extensions.js"></script>
+  <script src="core-catalog.js"></script>
+  <script src="core-integration.js"></script>
 </body>
 </html>
