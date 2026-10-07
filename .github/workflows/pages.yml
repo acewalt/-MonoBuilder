@@ -30,6 +30,7 @@ jobs:
           node --check app.js
           node --check extensions.js
           node --check core-catalog.js
+          node --check core-fields.js
           node --check core-integration.js
 
       - name: Configure Pages
