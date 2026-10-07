@@ -21,6 +21,46 @@
     "game-creator-core": { id: "game-creator-core", name: "Game Creator 2 Core", type: "licensed" }
   };
 
+  // Exact entries exposed by the supplied Game Creator 2 Core through Unity's
+  // GameObject/Create Asset menus. Keeping this list explicit lets MonoBuilder
+  // mirror the actual Core hierarchy instead of inventing approximations.
+  const CORE_MENU_ITEMS = [
+    "GameObject/Game Creator/Cameras/Camera Shot",
+    "GameObject/Game Creator/Cameras/Main Camera",
+    "GameObject/Game Creator/Characters/Character",
+    "GameObject/Game Creator/Characters/Player",
+    "GameObject/Game Creator/Characters/Marker",
+    "GameObject/Game Creator/UI/Button",
+    "GameObject/Game Creator/UI/Button - TextMeshPro",
+    "GameObject/Game Creator/UI/Dropdown",
+    "GameObject/Game Creator/UI/Dropdown - TextMeshPro",
+    "GameObject/Game Creator/UI/Input Field",
+    "GameObject/Game Creator/UI/Input Field - TextMeshPro",
+    "GameObject/Game Creator/UI/Slider",
+    "GameObject/Game Creator/UI/Text",
+    "GameObject/Game Creator/UI/Toggle",
+    "GameObject/Game Creator/Variables/List Variables",
+    "GameObject/Game Creator/Variables/Name Variables",
+    "GameObject/Game Creator/Visual Scripting/Actions",
+    "GameObject/Game Creator/Visual Scripting/Conditions",
+    "GameObject/Game Creator/Visual Scripting/Hotspot",
+    "GameObject/Game Creator/Visual Scripting/Trigger",
+    "Assets/Create/Game Creator/Characters/Animation State",
+    "Assets/Create/Game Creator/Characters/Basic Locomotion State",
+    "Assets/Create/Game Creator/Characters/Complete Locomotion State",
+    "Assets/Create/Game Creator/Characters/Handle",
+    "Assets/Create/Game Creator/Characters/Skeleton",
+    "Assets/Create/Game Creator/Common/Material Sounds",
+    "Assets/Create/Game Creator/Developer/Touchstick Skin",
+    "Assets/Create/Game Creator/Variables/List Variables",
+    "Assets/Create/Game Creator/Variables/Name Variables"
+  ];
+
+  const CORE_BROWSER_MODES = [
+    "Hierarchy", "Actions", "Conditions", "Events", "Properties",
+    "Characters", "Cameras", "Variables", "UI", "All"
+  ];
+
   const coreTemplateEnglish = {
     id: CORE_TEMPLATE_ID,
     name: "Game Creator Character Core",
@@ -111,6 +151,8 @@
   let coreFieldMap = new Map();
   let coreFieldsReady = false;
   let corePinned = new Set(JSON.parse(localStorage.getItem("monobuilder-core-pinned") || "[]"));
+  let coreMode = localStorage.getItem("monobuilder-core-mode") || "Hierarchy";
+  if (CORE_BROWSER_MODES.indexOf(coreMode) === -1) coreMode = "Hierarchy";
 
   const coreEls = {
     dialog: document.getElementById("coreDialog"),
@@ -367,6 +409,145 @@
     renderDependencyStrip();
   };
 
+  function modeLabel(mode, es) {
+    const labels = {
+      Hierarchy: es ? "Jerarquía" : "Hierarchy",
+      Actions: es ? "Acciones" : "Actions",
+      Conditions: es ? "Condiciones" : "Conditions",
+      Events: es ? "Eventos" : "Events",
+      Properties: es ? "Propiedades" : "Properties",
+      Characters: es ? "Personajes" : "Characters",
+      Cameras: es ? "Cámaras" : "Cameras",
+      Variables: "Variables",
+      UI: "UI",
+      All: es ? "Todo" : "All"
+    };
+    return labels[mode] || mode;
+  }
+
+  function ensureCoreTabs() {
+    if (!coreEls.dialog || document.getElementById("coreTabs")) return;
+    const tabs = document.createElement("div");
+    tabs.id = "coreTabs";
+    tabs.className = "core-tabs";
+    coreEls.summary.insertAdjacentElement("afterend", tabs);
+    renderCoreTabs();
+  }
+
+  function renderCoreTabs() {
+    const tabs = document.getElementById("coreTabs");
+    if (!tabs) return;
+    const es = currentLang() === "es";
+    const counts = coreModeCounts();
+
+    tabs.innerHTML = "";
+    CORE_BROWSER_MODES.forEach(function(mode) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "core-tab" + (coreMode === mode ? " active" : "");
+      const count = counts[mode];
+      button.innerHTML = "<span>" + modeLabel(mode, es) + "</span>" +
+        (Number.isFinite(count) ? "<small>" + count + "</small>" : "");
+      button.addEventListener("click", function() {
+        coreMode = mode;
+        localStorage.setItem("monobuilder-core-mode", mode);
+        renderCoreTabs();
+        renderCoreList();
+      });
+      tabs.appendChild(button);
+    });
+  }
+
+  function coreMeta(item) {
+    return coreFieldMap.get(item.module + "::" + item.name) || null;
+  }
+
+  function corePath(item) {
+    const meta = coreMeta(item);
+    return meta && meta.path ? meta.path.replace(/\\/g, "/") : "";
+  }
+
+  function isAction(item) {
+    const path = corePath(item);
+    return /^Instruction/.test(item.name) ||
+      path.indexOf("VisualScripting/Instructions/") !== -1;
+  }
+
+  function isCondition(item) {
+    const path = corePath(item);
+    return /^Condition/.test(item.name) ||
+      path.indexOf("VisualScripting/Conditions/") !== -1;
+  }
+
+  function isEvent(item) {
+    const path = corePath(item);
+    return /^Event/.test(item.name) ||
+      path.indexOf("VisualScripting/Events/") !== -1;
+  }
+
+  function isProperty(item) {
+    const path = corePath(item);
+    return /^(Property(Get|Set)|PropertyType(Get|Set)|TProperty(Get|Set))/.test(item.name) ||
+      path.indexOf("/Properties/") !== -1 ||
+      path.indexOf("Polymorphism/") !== -1 && /Property/.test(item.name);
+  }
+
+  function itemMatchesMode(item, mode) {
+    const path = corePath(item);
+    switch (mode) {
+      case "Actions": return isAction(item);
+      case "Conditions": return isCondition(item);
+      case "Events": return isEvent(item);
+      case "Properties": return isProperty(item);
+      case "Characters": return item.module === "Characters";
+      case "Cameras": return item.module === "Cameras";
+      case "Variables": return item.module === "Variables";
+      case "UI": return path.indexOf("Common/UI/") !== -1 || /^(Button|Dropdown|InputField|Slider|Text|Toggle)/.test(item.name);
+      case "All": return true;
+      default: return false;
+    }
+  }
+
+  function coreModeCounts() {
+    const counts = { Hierarchy: CORE_MENU_ITEMS.length };
+    CORE_BROWSER_MODES.forEach(function(mode) {
+      if (mode === "Hierarchy") return;
+      counts[mode] = coreCatalogReady
+        ? coreCatalog.reduce(function(total, item) { return total + (itemMatchesMode(item, mode) ? 1 : 0); }, 0)
+        : NaN;
+    });
+    return counts;
+  }
+
+  function prettifyCoreName(name) {
+    return String(name || "")
+      .replace(/^(Instruction|Condition|Event|PropertyTypeGet|PropertyTypeSet|PropertyGet|PropertySet)/, "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim() || name;
+  }
+
+  function shortCoreGroup(item) {
+    const path = corePath(item);
+    const markers = [
+      "Instructions/Collection/", "Conditions/Collection/", "Events/Collection/",
+      "Runtime/Characters/", "Runtime/Cameras/", "Runtime/Variables/", "Runtime/Common/UI/"
+    ];
+    for (let i = 0; i < markers.length; i++) {
+      const at = path.indexOf(markers[i]);
+      if (at !== -1) {
+        const tail = path.substring(at + markers[i].length).replace(/\/[^/]+\.cs$/, "");
+        if (tail) return tail.replace(/\//g, " › ");
+      }
+    }
+    return item.module;
+  }
+
+  function corePinKey(item) {
+    return item.menuPath ? "@menu:" + item.menuPath : item.name;
+  }
+
   function localizeCoreControls() {
     const es = currentLang() === "es";
     if (coreEls.bundle) coreEls.bundle.textContent = es ? "Exportar paquete" : "Export Bundle";
@@ -380,12 +561,13 @@
     if (coreEls.dialog) {
       const eyebrow = coreEls.dialog.querySelector(".modal-header .eyebrow");
       const title = coreEls.dialog.querySelector(".modal-header h2");
-      if (eyebrow) eyebrow.textContent = es ? "Arquitectura importada" : "Imported architecture";
-      if (title) title.textContent = es ? "Explorador del Core" : "Core Explorer";
-      if (coreEls.search) coreEls.search.placeholder = es ? "Buscar entre los tipos detectados del Core" : "Search detected Core types";
+      if (eyebrow) eyebrow.textContent = es ? "Game Creator 2 · Core completo" : "Game Creator 2 · full Core";
+      if (title) title.textContent = es ? "Catálogo completo del Core" : "Full Core Catalog";
+      if (coreEls.search) coreEls.search.placeholder = es ? "Buscar menús, Actions, Conditions, Events, propiedades..." : "Search menus, Actions, Conditions, Events, properties...";
       const first = coreEls.filter && coreEls.filter.options[0];
       if (first) first.textContent = es ? "Todos los módulos" : "All modules";
     }
+    renderCoreTabs();
   }
 
   async function ensureCoreCatalog() {
@@ -395,6 +577,7 @@
       coreCatalog = await window.loadMonoBuilderCoreCatalog();
       coreCatalogReady = true;
       renderCoreSummary();
+      renderCoreTabs();
       renderCoreList();
     } catch (error) {
       coreEls.summary.innerHTML = '<div class="core-error">Catalog could not be decompressed in this browser.</div>';
@@ -408,6 +591,7 @@
       coreFieldMap = await window.loadMonoBuilderCoreFields();
       coreFieldsReady = true;
       renderCoreSummary();
+      renderCoreTabs();
     } catch (error) {
       console.error("MonoBuilder Core field metadata:", error);
     }
@@ -419,42 +603,81 @@
     if (coreFieldsReady) coreFieldMap.forEach(function(meta){ serializedFields += meta.fields.length; });
     coreEls.summary.innerHTML = [
       [2803, es ? "archivos analizados" : "files scanned"],
-      [2199, es ? "scripts Runtime" : "Runtime scripts"],
-      [489, es ? "scripts Editor" : "Editor scripts"],
-      [coreCatalog.length, es ? "tipos indexados" : "indexed types"],
-      [coreFieldsReady ? coreFieldMap.size : "…", es ? "tipos con opciones serializadas" : "types with serialized options"],
-      [coreFieldsReady ? serializedFields : "…", es ? "campos serializados detectados" : "serialized fields detected"]
+      [CORE_MENU_ITEMS.length, es ? "entradas reales de menú" : "real menu entries"],
+      [coreCatalog.length || "…", es ? "tipos del Core indexados" : "indexed Core types"],
+      [coreFieldsReady ? coreFieldMap.size : "…", es ? "tipos inspeccionables" : "inspectable types"],
+      [coreFieldsReady ? serializedFields : "…", es ? "campos serializados" : "serialized fields"],
+      [corePinned.size, es ? "elementos en tu paquete" : "items in your bundle"]
     ].map(function(x){ return '<div class="core-stat"><strong>' + x[0] + '</strong><span>' + x[1] + '</span></div>'; }).join("");
   }
 
-  function renderCoreList() {
-    if (!coreCatalogReady) return;
+  function renderMenuRow(path) {
     const q = (coreEls.search.value || "").trim().toLowerCase();
-    const module = coreEls.filter.value || "All";
-    const filtered = coreCatalog.filter(function(item){
-      return (module === "All" || item.module === module) && (!q || item.name.toLowerCase().includes(q));
-    }).slice(0, 350);
+    if (q && path.toLowerCase().indexOf(q) === -1) return null;
+    const clean = path.replace(/^GameObject\/Game Creator\//, "").replace(/^Assets\/Create\/Game Creator\//, "");
+    const parts = clean.split("/");
+    const leaf = parts.pop();
+    const kind = path.indexOf("GameObject/") === 0 ? "GameObject" : "Asset";
+    const item = { menuPath: path, name: leaf, module: parts[0] || "Core", kind: kind };
+    const key = corePinKey(item);
 
-    coreEls.list.innerHTML = "";
-    filtered.forEach(function(item){
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "core-type-row" + (corePinned.has(item.name) ? " pinned" : "");
-      row.innerHTML = '<span class="core-type-icon">' + item.module.slice(0,2).toUpperCase() + '</span>' +
-        '<span><strong>' + item.name + '</strong><small>' + item.module + '</small></span>' +
-        (corePinned.has(item.name) ? '<span class="pin-dot">●</span>' : '');
-      row.addEventListener("click", function(){ showCoreDetail(item); });
-      coreEls.list.appendChild(row);
-    });
-    if (!filtered.length) coreEls.list.innerHTML = '<div class="core-empty">No matching Core types.</div>';
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "core-type-row core-menu-row" + (corePinned.has(key) ? " pinned" : "");
+    row.innerHTML =
+      '<span class="core-type-icon">' + (kind === "GameObject" ? "GO" : "AS") + '</span>' +
+      '<span><strong>' + escapeHtmlCore(leaf) + '</strong><small>' +
+        escapeHtmlCore(parts.join(" › ") || "Game Creator") + '</small></span>' +
+      (corePinned.has(key) ? '<span class="pin-dot">●</span>' : '');
+    row.addEventListener("click", function(){ showCoreMenuDetail(item); });
+    return row;
   }
 
-  function showCoreDetail(item) {
-    const es = currentLang() === "es";
-    const deps = depsFromMask(item.depMask).map(function(id){ return DEPENDENCIES[id]; });
-    const pinned = corePinned.has(item.name);
-    const meta = coreFieldMap.get(item.module + "::" + item.name);
-    const fieldsHtml = meta && meta.fields.length
+  function renderCoreList() {
+    if (!coreCatalogReady && coreMode !== "Hierarchy") return;
+    const q = (coreEls.search.value || "").trim().toLowerCase();
+    const module = coreEls.filter.value || "All";
+    coreEls.list.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+
+    if (coreMode === "Hierarchy") {
+      CORE_MENU_ITEMS.forEach(function(path) {
+        const row = renderMenuRow(path);
+        if (row) fragment.appendChild(row);
+      });
+      coreEls.list.appendChild(fragment);
+      if (!coreEls.list.children.length) coreEls.list.innerHTML = '<div class="core-empty">No matching Game Creator menu entries.</div>';
+      return;
+    }
+
+    let total = 0;
+    coreCatalog.forEach(function(item) {
+      if (!itemMatchesMode(item, coreMode)) return;
+      if (module !== "All" && item.module !== module) return;
+      const meta = coreMeta(item);
+      const haystack = (item.name + " " + prettifyCoreName(item.name) + " " + shortCoreGroup(item) + " " + (meta ? meta.path : "")).toLowerCase();
+      if (q && haystack.indexOf(q) === -1) return;
+      total++;
+
+      const key = corePinKey(item);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "core-type-row" + (corePinned.has(key) ? " pinned" : "");
+      row.innerHTML =
+        '<span class="core-type-icon">' + item.module.slice(0,2).toUpperCase() + '</span>' +
+        '<span><strong>' + escapeHtmlCore(prettifyCoreName(item.name)) + '</strong><small>' +
+          escapeHtmlCore(shortCoreGroup(item)) + ' · ' + escapeHtmlCore(item.name) + '</small></span>' +
+        (corePinned.has(key) ? '<span class="pin-dot">●</span>' : '');
+      row.addEventListener("click", function(){ showCoreDetail(item); });
+      fragment.appendChild(row);
+    });
+
+    coreEls.list.appendChild(fragment);
+    if (!total) coreEls.list.innerHTML = '<div class="core-empty">No matching Core types.</div>';
+  }
+
+  function fieldsHtmlFor(meta, es) {
+    return meta && meta.fields.length
       ? '<div class="core-options"><h4>' + (es ? 'Opciones serializadas detectadas' : 'Detected serialized options') + '</h4>' +
         meta.fields.map(function(field){
           const badges = [];
@@ -463,36 +686,78 @@
             if (attr !== 'SerializeField' && attr !== 'SerializeReference' && badges.indexOf(attr) === -1) badges.push(attr);
           });
           return '<div class="core-option-row">' +
-            '<div><strong>' + field.name + '</strong><small>' + field.type + '</small></div>' +
+            '<div><strong>' + escapeHtmlCore(field.name) + '</strong><small>' + escapeHtmlCore(field.type) + '</small></div>' +
             '<div class="core-option-meta">' +
               (field.defaultValue ? '<code>' + escapeHtmlCore(field.defaultValue) + '</code>' : '') +
-              badges.map(function(b){ return '<span>' + b + '</span>'; }).join('') +
+              badges.map(function(b){ return '<span>' + escapeHtmlCore(b) + '</span>'; }).join('') +
             '</div>' +
           '</div>';
         }).join('') +
         '</div>'
       : '<div class="core-no-options">' + (es ? 'No se detectaron campos serializados directos en este tipo.' : 'No direct serialized fields were detected on this type.') + '</div>';
+  }
+
+  function persistCorePins() {
+    localStorage.setItem("monobuilder-core-pinned", JSON.stringify(Array.from(corePinned)));
+    renderCoreSummary();
+    renderCoreTabs();
+    renderCoreList();
+    renderDependencyStrip();
+  }
+
+  function showCoreMenuDetail(item) {
+    const es = currentLang() === "es";
+    const key = corePinKey(item);
+    const pinned = corePinned.has(key);
+    const clean = item.menuPath.replace(/^GameObject\/Game Creator\//, "").replace(/^Assets\/Create\/Game Creator\//, "");
+
     coreEls.detail.innerHTML =
-      '<p class="eyebrow">' + item.module + '</p>' +
-      '<h3>' + item.name + '</h3>' +
+      '<p class="eyebrow">Unity · Game Creator</p>' +
+      '<h3>' + escapeHtmlCore(item.name) + '</h3>' +
       '<p>' + (es
-        ? 'Tipo detectado al analizar el Core cargado. Puede fijarse como referencia para que su paquete y dependencias queden registrados al exportar.'
-        : 'Type detected while scanning the uploaded Core. Pin it as a reference so its package and detected dependencies are recorded in the export bundle.') + '</p>' +
-      (meta ? '<div class="core-source-meta"><span>' + meta.kind + '</span><span>' + escapeHtmlCore(meta.namespace || '') + '</span><span>' + escapeHtmlCore(meta.path || '') + '</span></div>' : '') +
-      '<div class="core-dep-list">' +
-        '<span class="dependency-badge licensed">Game Creator 2 Core</span>' +
-        deps.map(function(dep){ return '<span class="dependency-badge ' + dep.type + '">' + dep.name + '</span>'; }).join("") +
-      '</div>' +
-      fieldsHtml +
+        ? 'Esta entrada existe realmente en el menú del Core que me pasaste. Al añadirla al paquete, MonoBuilder genera un acceso de Unity que ejecuta exactamente este MenuItem.'
+        : 'This entry exists in the supplied Core menu. Adding it to the bundle makes MonoBuilder generate a Unity helper that executes this exact MenuItem.') + '</p>' +
+      '<div class="core-source-meta"><span>' + escapeHtmlCore(item.kind) + '</span><span>' + escapeHtmlCore(clean) + '</span></div>' +
+      '<div class="core-dep-list"><span class="dependency-badge licensed">Game Creator 2 Core</span></div>' +
       '<button type="button" class="button ' + (pinned ? 'ghost' : 'primary') + '" id="toggleCorePin">' +
         (pinned ? (es ? 'Quitar del paquete' : 'Remove from bundle') : (es ? 'Añadir al paquete' : 'Add to bundle')) +
       '</button>';
+
     document.getElementById("toggleCorePin").addEventListener("click", function(){
-      if (corePinned.has(item.name)) corePinned.delete(item.name); else corePinned.add(item.name);
-      localStorage.setItem("monobuilder-core-pinned", JSON.stringify(Array.from(corePinned)));
+      if (corePinned.has(key)) corePinned.delete(key); else corePinned.add(key);
+      persistCorePins();
+      showCoreMenuDetail(item);
+    });
+  }
+
+  function showCoreDetail(item) {
+    const es = currentLang() === "es";
+    const deps = depsFromMask(item.depMask).map(function(id){ return DEPENDENCIES[id]; });
+    const key = corePinKey(item);
+    const pinned = corePinned.has(key);
+    const meta = coreMeta(item);
+    const label = prettifyCoreName(item.name);
+
+    coreEls.detail.innerHTML =
+      '<p class="eyebrow">' + escapeHtmlCore(item.module) + '</p>' +
+      '<h3>' + escapeHtmlCore(label) + '</h3>' +
+      '<p>' + (es
+        ? 'Tipo real del Core. Puedes inspeccionar sus campos serializados y fijarlo como referencia del paquete exportado.'
+        : 'Real Core type. Inspect its serialized fields and pin it as a reference in the exported bundle.') + '</p>' +
+      (meta ? '<div class="core-source-meta"><span>' + escapeHtmlCore(meta.kind) + '</span><span>' + escapeHtmlCore(meta.namespace || '') + '</span><span>' + escapeHtmlCore(meta.path || '') + '</span></div>' : '') +
+      '<div class="core-dep-list">' +
+        '<span class="dependency-badge licensed">Game Creator 2 Core</span>' +
+        deps.map(function(dep){ return '<span class="dependency-badge ' + dep.type + '">' + escapeHtmlCore(dep.name) + '</span>'; }).join("") +
+      '</div>' +
+      fieldsHtmlFor(meta, es) +
+      '<button type="button" class="button ' + (pinned ? 'ghost' : 'primary') + '" id="toggleCorePin">' +
+        (pinned ? (es ? 'Quitar del paquete' : 'Remove from bundle') : (es ? 'Añadir al paquete' : 'Add to bundle')) +
+      '</button>';
+
+    document.getElementById("toggleCorePin").addEventListener("click", function(){
+      if (corePinned.has(key)) corePinned.delete(key); else corePinned.add(key);
+      persistCorePins();
       showCoreDetail(item);
-      renderCoreList();
-      renderDependencyStrip();
     });
   }
 
@@ -506,8 +771,10 @@
 
   coreEls.open.addEventListener("click", async function(){
     coreEls.dialog.showModal();
+    ensureCoreTabs();
     await Promise.all([ensureCoreCatalog(), ensureCoreFields()]);
     renderCoreSummary();
+    renderCoreTabs();
     renderCoreList();
     localizeCoreControls();
   });
