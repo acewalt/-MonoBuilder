@@ -593,6 +593,12 @@ async function copyCode() {
 
 function downloadCode() {
   const template = currentTemplate();
+
+  if (window.MonoBuilderBundle && typeof window.MonoBuilderBundle.download === "function") {
+    window.MonoBuilderBundle.download(template, generateCode());
+    return;
+  }
+
   const blob = new Blob([generateCode()], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
