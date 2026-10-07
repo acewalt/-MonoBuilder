@@ -305,6 +305,53 @@
     return out;
   }
 
+  function pinnedCoreSelections() {
+    let raw = [];
+    try {
+      raw = JSON.parse(localStorage.getItem("monobuilder-core-pinned") || "[]");
+    } catch (_) {
+      raw = [];
+    }
+    if (!Array.isArray(raw)) raw = [];
+    return {
+      menus: raw.filter(function(value){ return typeof value === "string" && value.indexOf("@menu:") === 0; })
+        .map(function(value){ return value.substring("@menu:".length); }),
+      types: raw.filter(function(value){ return typeof value === "string" && value.indexOf("@menu:") !== 0; })
+    };
+  }
+
+  function gameCreatorMenuHelperCode(paths) {
+    if (!paths.length) return "";
+    const lines = [
+      "#if UNITY_EDITOR",
+      "using UnityEditor;",
+      "using UnityEngine;",
+      "",
+      "public static class MonoBuilderPinnedGameCreatorMenus",
+      "{"
+    ];
+
+    paths.forEach(function(path, index) {
+      const label = path
+        .replace(/^GameObject\/Game Creator\//, "")
+        .replace(/^Assets\/Create\/Game Creator\//, "")
+        .replace(/\//g, " - ")
+        .replace(/"/g, "");
+      lines.push(
+        "    [MenuItem(\"Tools/MonoBuilder/Game Creator/" + label.replace(/"/g, "\\\\\"") + "\")]",
+        "    public static void Create_" + index + "()",
+        "    {",
+        "        if (!EditorApplication.ExecuteMenuItem(\"" + path.replace(/\\/g, "\\\\\\\\").replace(/"/g, "\\\\\"") + "\"))",
+        "            Debug.LogWarning(\"MonoBuilder: Game Creator menu item was not found. Make sure the bundled Core finished importing.\");",
+        "    }",
+        ""
+      );
+    });
+
+    lines.push("}", "#endif");
+    return lines.join("\\n");
+  }
+
   function characterEditorCodeVault() {
     const v = values;
     const rigs = [
@@ -684,6 +731,7 @@
     }
 
     const deps = await resolveBundleDependencies(template, code);
+    const selections = pinnedCoreSelections();
     const bundleId = safeIdentifier(template.className || template.name);
     const bundleRoot = "Assets/MonoBuilder/Bundles/" + bundleId + "/";
     const files = {};
@@ -694,10 +742,18 @@
       if (template.id === "gc2-character-core") {
         files[bundleRoot + "Payload/Editor/MonoBuilderCreateCharacter.cs.mbcode"] = characterEditorCodeVault();
       }
+      if (selections.menus.length) {
+        files[bundleRoot + "Payload/Editor/MonoBuilderPinnedGameCreatorMenus.cs.mbcode"] =
+          gameCreatorMenuHelperCode(selections.menus);
+      }
       files[bundleRoot + "Editor/MonoBuilderBundleBootstrap_" + bundleId + ".cs"] =
         makeBootstrap(deps, bundleId, coreNeeded && !!coreRecord);
     } else {
       files[bundleRoot + "Generated/" + template.className + ".cs"] = code;
+      if (selections.menus.length) {
+        files[bundleRoot + "Editor/MonoBuilderPinnedGameCreatorMenus.cs"] =
+          gameCreatorMenuHelperCode(selections.menus);
+      }
     }
 
     if (coreNeeded && coreRecord && coreRecord.bytes) {
@@ -724,7 +780,11 @@
           type: dep.type,
           package: dep.package || null
         };
-      })
+      }),
+      gameCreatorSelections: {
+        menuItems: selections.menus,
+        types: selections.types
+      }
     }, null, 2);
 
     files["README.md"] = readmeText(template, deps, coreNeeded && !!coreRecord);
