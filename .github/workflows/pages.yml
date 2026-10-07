@@ -32,6 +32,7 @@ jobs:
           node --check core-catalog.js
           node --check core-fields.js
           node --check core-integration.js
+          node --check core-vault.js
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
