@@ -125,6 +125,8 @@
   };
 
   function currentLang() {
+    const stored = localStorage.getItem("monobuilder-lang");
+    if (stored === "es" || stored === "en") return stored;
     return document.documentElement.lang === "es" ? "es" : "en";
   }
 
@@ -362,6 +364,8 @@
   function localizeCoreControls() {
     const es = currentLang() === "es";
     if (coreEls.bundle) coreEls.bundle.textContent = es ? "Exportar paquete" : "Export Bundle";
+    const rawButton = document.getElementById("downloadCodeBtn");
+    if (rawButton) rawButton.textContent = es ? "Solo .cs" : "Raw .cs";
     if (coreEls.open) coreEls.open.textContent = "Core";
     if (coreEls.depStrip) {
       const label = coreEls.depStrip.querySelector(".dependency-label");
@@ -650,4 +654,5 @@
   renderCategories();
   localizeCoreTemplate();
   renderAll();
+  ensureCoreCatalog().then(function(){ renderDependencyStrip(); }).catch(function(){});
 })();
