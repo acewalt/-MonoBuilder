@@ -786,7 +786,11 @@
 
     const dependencyBadges = document.getElementById("dependencyBadges");
     if (dependencyBadges && "MutationObserver" in window) {
-      new MutationObserver(decorateDependencyBadge).observe(dependencyBadges, { childList: true, subtree: true });
+      // Watch only direct badge insert/remove operations. Observing the subtree caused
+      // decorateDependencyBadge() to retrigger itself whenever it changed badge text.
+      new MutationObserver(function () {
+        decorateDependencyBadge();
+      }).observe(dependencyBadges, { childList: true });
     }
 
     const oldButton = document.getElementById("downloadBundleBtn");
