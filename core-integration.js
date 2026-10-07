@@ -108,6 +108,8 @@
 
   let coreCatalog = [];
   let coreCatalogReady = false;
+  let coreFieldMap = new Map();
+  let coreFieldsReady = false;
   let corePinned = new Set(JSON.parse(localStorage.getItem("monobuilder-core-pinned") || "[]"));
 
   const coreEls = {
@@ -250,7 +252,11 @@
       "        character.Motion.DashInAir = " + (v.dashInAir ? "true" : "false") + ";",
       "        character.Motion.DashCooldown = " + Number(v.dashCooldown) + "f;",
       "        character.Footsteps.IsActive = " + (v.footstepsActive ? "true" : "false") + ";",
-      rigs || "        // No optional IK rigs selected.",
+      (rigs
+        ? "        if (character.Animim != null && character.Animim.Animator != null)\n        {\n" +
+          rigs.split("\n").map(function(line){ return "    " + line; }).join("\n") +
+          "\n        }\n        else\n        {\n            Debug.LogWarning(\"MonoBuilder: assign a Character model/Animator before applying IK rigs.\", character);\n        }"
+        : "        // No optional IK rigs selected."),
       "    }",
       "}"
     ].join("\n");
@@ -396,13 +402,28 @@
     }
   }
 
+  async function ensureCoreFields() {
+    if (coreFieldsReady) return;
+    try {
+      coreFieldMap = await window.loadMonoBuilderCoreFields();
+      coreFieldsReady = true;
+      renderCoreSummary();
+    } catch (error) {
+      console.error("MonoBuilder Core field metadata:", error);
+    }
+  }
+
   function renderCoreSummary() {
     const es = currentLang() === "es";
+    let serializedFields = 0;
+    if (coreFieldsReady) coreFieldMap.forEach(function(meta){ serializedFields += meta.fields.length; });
     coreEls.summary.innerHTML = [
       [2803, es ? "archivos analizados" : "files scanned"],
       [2199, es ? "scripts Runtime" : "Runtime scripts"],
       [489, es ? "scripts Editor" : "Editor scripts"],
-      [coreCatalog.length, es ? "tipos indexados" : "indexed types"]
+      [coreCatalog.length, es ? "tipos indexados" : "indexed types"],
+      [coreFieldsReady ? coreFieldMap.size : "…", es ? "tipos con opciones serializadas" : "types with serialized options"],
+      [coreFieldsReady ? serializedFields : "…", es ? "campos serializados detectados" : "serialized fields detected"]
     ].map(function(x){ return '<div class="core-stat"><strong>' + x[0] + '</strong><span>' + x[1] + '</span></div>'; }).join("");
   }
 
@@ -432,16 +453,37 @@
     const es = currentLang() === "es";
     const deps = depsFromMask(item.depMask).map(function(id){ return DEPENDENCIES[id]; });
     const pinned = corePinned.has(item.name);
+    const meta = coreFieldMap.get(item.module + "::" + item.name);
+    const fieldsHtml = meta && meta.fields.length
+      ? '<div class="core-options"><h4>' + (es ? 'Opciones serializadas detectadas' : 'Detected serialized options') + '</h4>' +
+        meta.fields.map(function(field){
+          const badges = [];
+          if (field.serializeReference) badges.push('SerializeReference');
+          (field.attributes || []).forEach(function(attr){
+            if (attr !== 'SerializeField' && attr !== 'SerializeReference' && badges.indexOf(attr) === -1) badges.push(attr);
+          });
+          return '<div class="core-option-row">' +
+            '<div><strong>' + field.name + '</strong><small>' + field.type + '</small></div>' +
+            '<div class="core-option-meta">' +
+              (field.defaultValue ? '<code>' + escapeHtmlCore(field.defaultValue) + '</code>' : '') +
+              badges.map(function(b){ return '<span>' + b + '</span>'; }).join('') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+        '</div>'
+      : '<div class="core-no-options">' + (es ? 'No se detectaron campos serializados directos en este tipo.' : 'No direct serialized fields were detected on this type.') + '</div>';
     coreEls.detail.innerHTML =
       '<p class="eyebrow">' + item.module + '</p>' +
       '<h3>' + item.name + '</h3>' +
       '<p>' + (es
         ? 'Tipo detectado al analizar el Core cargado. Puede fijarse como referencia para que su paquete y dependencias queden registrados al exportar.'
         : 'Type detected while scanning the uploaded Core. Pin it as a reference so its package and detected dependencies are recorded in the export bundle.') + '</p>' +
+      (meta ? '<div class="core-source-meta"><span>' + meta.kind + '</span><span>' + escapeHtmlCore(meta.namespace || '') + '</span><span>' + escapeHtmlCore(meta.path || '') + '</span></div>' : '') +
       '<div class="core-dep-list">' +
         '<span class="dependency-badge licensed">Game Creator 2 Core</span>' +
         deps.map(function(dep){ return '<span class="dependency-badge ' + dep.type + '">' + dep.name + '</span>'; }).join("") +
       '</div>' +
+      fieldsHtml +
       '<button type="button" class="button ' + (pinned ? 'ghost' : 'primary') + '" id="toggleCorePin">' +
         (pinned ? (es ? 'Quitar del paquete' : 'Remove from bundle') : (es ? 'Añadir al paquete' : 'Add to bundle')) +
       '</button>';
@@ -454,9 +496,17 @@
     });
   }
 
+  function escapeHtmlCore(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   coreEls.open.addEventListener("click", async function(){
     coreEls.dialog.showModal();
-    await ensureCoreCatalog();
+    await Promise.all([ensureCoreCatalog(), ensureCoreFields()]);
     renderCoreSummary();
     renderCoreList();
     localizeCoreControls();
@@ -654,5 +704,5 @@
   renderCategories();
   localizeCoreTemplate();
   renderAll();
-  ensureCoreCatalog().then(function(){ renderDependencyStrip(); }).catch(function(){});
+  Promise.all([ensureCoreCatalog(), ensureCoreFields()]).then(function(){ renderDependencyStrip(); }).catch(function(){});
 })();
