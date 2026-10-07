@@ -19,6 +19,9 @@ It is aimed at users who do not know C# yet: choose a reusable component, edit f
 - Animation pack based on LeanTween and DOTween workflows
 - Trivia Quiz Manager
 - Registration Form POST and Periodic Data Sender templates
+- Game Creator 2 Core architecture explorer and Character builder
+- Dependency-aware bundle export with a Unity Editor bootstrap installer
+- Serialized-option index extracted from the supplied Core source
 - GitHub Pages deployment workflow
 
 ## Included templates
@@ -42,6 +45,36 @@ It is aimed at users who do not know C# yet: choose a reusable component, edit f
 - Trivia Quiz Manager
 - Registration Form POST
 - Periodic Data Sender
+- Game Creator Character Core
+
+## Game Creator Core integration
+
+The supplied Game Creator 2 Core C# source was analyzed as architecture input for MonoBuilder:
+
+- 2,803 source files scanned
+- 2,199 Runtime C# scripts
+- 489 Editor C# scripts
+- 1,400+ runtime-relevant types exposed through Core Explorer
+- 1,078 types with detected serialized options
+- 1,985 serialized fields indexed for visual inspection
+- Modules indexed: Cameras, Characters, Common, Variables, and Visual Scripting
+
+The **Game Creator Character Core** template exposes the main Character kernel choices (Player, Motion, Driver, Rotation, Animation), locomotion/gravity/jump/dash values, Footsteps, Ragdoll, and optional IK rigs.
+
+The public repository intentionally stores only generated integration code and compact architectural metadata. It does **not** redistribute the original Game Creator source or commercial assets. A Unity project using those generated integrations must have its licensed Game Creator 2 Core installation available.
+
+## Dependency-safe bundles
+
+**Export Bundle** creates a ZIP instead of only a loose C# file.
+
+If a generated component needs an external package, the runtime code is exported as an inactive `.mbcode` payload so Unity does not fail compilation before dependencies exist. A small Editor bootstrapper can then:
+
+1. detect already installed dependencies by reflection,
+2. install supported Unity Package Manager dependencies,
+3. report manual/licensed dependencies such as Game Creator, DOTween, or LeanTween,
+4. activate the generated C# only after requirements are available.
+
+A human-readable README and `MonoBuilder.dependencies.json` are included in every bundle.
 
 ## Run locally
 
@@ -67,5 +100,6 @@ MonoBuilder does not run the Unity engine in the browser. The Inspector preview 
 - ScriptableObject templates
 - Event/action logic blocks
 - Scene-object blueprint editor
-- Package export
+- Import existing Unity C# into editable visual controls
+- More high-level Game Creator presets for Cameras, Visual Scripting, Variables, Remember, Actions and Conditions
 - Roslyn/WASM analysis
