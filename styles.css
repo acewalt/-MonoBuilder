@@ -560,3 +560,52 @@ button { color: inherit; }
   .core-vault-actions { width: 100%; }
   .core-vault-actions .button { flex: 1; }
 }
+
+
+.core-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 2px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.core-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: #14171b;
+  color: var(--muted);
+  font-size: 9px;
+  cursor: pointer;
+}
+.core-tab small {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--muted-2);
+  font-size: 8px;
+}
+.core-tab:hover { color: var(--text); border-color: #47505c; }
+.core-tab.active {
+  color: var(--text);
+  border-color: rgba(138,164,255,.48);
+  background: var(--accent-soft);
+}
+.core-tab.active small {
+  color: var(--accent-strong);
+  background: rgba(138,164,255,.12);
+}
+.core-menu-row .core-type-icon {
+  color: var(--success);
+  border-color: rgba(117,215,154,.26);
+}
